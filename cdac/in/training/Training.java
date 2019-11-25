@@ -1,9 +1,11 @@
-package cdac.in.prediction;
+package cdac.in.training;
 
 import java.io.*;
 import java.util.*;
 import java.time.*;
-import java.time.format.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.sql.Timestamp;
 
 class Question{
 
@@ -42,7 +44,7 @@ class Question{
 	void print(String block){
 		avargeTime =  totalTime / (double) attemptedApplicant.size() ;
 		avargeAction =  totalAction / (double) attemptedApplicant.size() ;
-		System.out.println(block+", "+id+", "+type+", "+ totalTime+", "+avargeTime+", "+totalAction+", "+avargeAction+", "+fifthPercentile+", "+fifthPercentileAction);
+		//System.out.println(block+", "+id+", "+type+", "+ totalTime+", "+avargeTime+", "+totalAction+", "+avargeAction+", "+fifthPercentile+", "+fifthPercentileAction);
 	}
 }
 
@@ -78,7 +80,9 @@ class Block{
 		}
 
 		for(String id: questions20.keySet()){
+
 			Question question = questions20.get(id);
+
 			Collections.sort( question.alltime );
 			long index =  Math.round( ( (double)5 / (double)100 ) * (double) question.alltime.size() ); 
 			question.fifthPercentile = question.alltime.get( (int)index ); 
@@ -86,6 +90,7 @@ class Block{
 			Collections.sort( question.allAction );
 			index =  Math.round( ( (double)5 / (double)100 ) * (double) question.allAction.size() ); 
 			question.fifthPercentileAction = question.allAction.get( (int) index ); 
+
 			questions20.put( id, question );
 		}
 
@@ -101,10 +106,11 @@ class Block{
 			question.fifthPercentileAction = question.allAction.get( (int) index ); 
 			questions10.put( id, question );
 		}
-
 	}
 
 	void print(){
+
+		/*
 
 		System.out.println("Block, QuestionId, QuestionType, TotalTime, AvargeTime, TotalActionTaken, AvargeActionTaken, 5th-Percentile, 5th-PercentileAction");
 		for(String id: questions.keySet()){
@@ -118,6 +124,8 @@ class Block{
 		for(String id: questions10.keySet()){
 			questions10.get(id).print( id );
 		}
+
+		*/
 	}
 }
 
@@ -159,7 +167,7 @@ class Applicant{
 	Map<String,Integer> blockResult;
 
 	int BlockRev;
-        int EOSTimeLft;
+        int EOSTimeLeft;
     	int SecTimeOut;
         int HELPMAT8;
 
@@ -184,7 +192,7 @@ class Applicant{
 		this.blockResult = new TreeMap<String, Integer>();
 
 		BlockRev = 0;
-		EOSTimeLft = 0;
+		EOSTimeLeft = 0;
 		SecTimeOut = 0;
 		HELPMAT8 = 0;
 
@@ -209,11 +217,67 @@ class Data{
 		applicants  =  new TreeMap<String, Applicant>();
 	}
 
-	void printTariningData(){
-		
+	void printTrainingHeader(){
+
+		/*
+			Note 
+			1. With all the data: 75.89%  System.out.print(", "+res.timeTaken+", "+res.actions.size()+", "+res.result+", "+res.actionresult);
+			2. WithOut action the data: 84.06% System.out.print(", "+res.timeTaken+", "+res.result);
+			3. WithOut action the data: 65.06% System.out.print(", "+res.result);
+			3. WithOut action the data: 82.06% System.out.print(", "+res.timeTaken+", "+res.actions.size()+", "+res.result);
+			3. WithOut action the data: 84.06% System.out.print(", "+res.timeTaken+", "+res.result+", "+res.actionresult);
+		*/
+		System.out.println("@relation 'NAEP TRAINING DATA SET'");
+		System.out.println("@attribute time {0.3,0.2,0.1}");
+
+		Block block = blocks.get("A");
+		for(String qid: block.questions.keySet() ){
+			System.out.println("@attribute "+qid+"time numeric");
+			//System.out.println("@attribute "+qid+"Action numeric");
+			System.out.println("@attribute "+qid+"ETU {0,1}");
+			//System.out.println("@attribute "+qid+"ActionResult {0,1}");
+		}
+
+		System.out.println("@attribute BlockRev numeric ");
+		System.out.println("@attribute EOSTimeLft numeric");
+		System.out.println("@attribute SecTimeOut numeric");
+		System.out.println("@attribute HELPMAT8 numeric");
+		System.out.println("@attribute BlockAETU {0,1}");
+		System.out.println("@attribute class {0,1}");
+		System.out.println("@data");
 	}
 
-	void readTarget(String filename, boolean header){
+	void printTrainingData(String time){
+
+		Block block = blocks.get("A");
+		for(String appId: applicants.keySet() ){
+
+			Applicant applicant = applicants.get( appId );
+			System.out.print(time);
+
+			for( String qId: block.questions.keySet() ){
+				Response res = applicant.responses.get( qId );
+				if( res != null ){
+					//System.out.print(", "+res.timeTaken+", "+res.actions.size()+", "+res.result+", "+res.actionresult);
+					System.out.print(", "+res.timeTaken+", "+res.result);
+					//System.out.print(", "+res.timeTaken+", "+res.result);
+				}else{
+					System.out.print(", 0, 0");
+				}
+			}
+			
+			if( time.equals("0.3") ){
+				System.out.print(", "+applicant.BlockRev+", "+applicant.EOSTimeLeft+", "+applicant.SecTimeOut+", "+applicant.HELPMAT8);
+			}else if ( time.equals("0.2") ){
+				System.out.print(", "+applicant.BlockRev20+", "+applicant.EOSTimeLeft20+", "+applicant.SecTimeOut20+", "+applicant.HELPMAT820);
+			}else if ( time.equals("0.1")){
+				System.out.print(", "+applicant.BlockRev10+", "+applicant.EOSTimeLeft10+", "+applicant.SecTimeOut10+", "+applicant.HELPMAT810);
+			}
+			System.out.println(", "+applicant.blockResult.get("A")+", "+applicant.blockResult.get("B"));
+		}
+	}
+
+	void readTrainingTarget(String filename, boolean header){
 
 		BufferedReader br = null;
 		String line = null;
@@ -228,9 +292,7 @@ class Data{
 					header = false;
 					continue;
 				}
-
 				count++;
-
 				String[] token =  line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
 				String applicantId =  token[0].trim();
 				String result =  token[1].trim();
@@ -252,7 +314,12 @@ class Data{
 
 	}
 
-	void read(String filename, boolean header){
+	void readTestingData(String filename, boolean header){
+
+	}
+
+
+	void readTraingData(String filename, boolean header){
 
 		BufferedReader br = null;
 		String line = null;
@@ -284,23 +351,16 @@ class Data{
 					applicant = new Applicant( applicantId );
 				}
 
-
 				if( blockId.equals("A") ){	
 
 					Response response = applicant.responses.get( qId );
-
 					if( response == null){
 						response = new Response( qId, qType, blockId );
 					}
-
 					if( action.equals("Enter Item") ){
-
 						response.enterTime = eventTime;
-
 					}else if ( action.equals("Exit Item") ){
-
 						response.exitTime = eventTime;
-
 					}else{
 						if( response.enterTime == null ){
 							response.enterTime = eventTime;
@@ -309,7 +369,6 @@ class Data{
 						}	
 						response.actions.add( info );
 					}
-
 					applicant.responses.put( qId, response );
 					applicants.put( applicantId, applicant );
 
@@ -346,28 +405,18 @@ class Data{
 
 				if( response.blockId.equals("A") ){
 
-					String []et = response.enterTime.split(":");
-					String []xt = response.exitTime.split(":");
+					try{
+						Timestamp et = Timestamp.valueOf( response.enterTime);
+						Timestamp xt = Timestamp.valueOf( response.exitTime );
 
-					double unit = 60.0d;
+						long milliseconds = xt.getTime() - et.getTime();
+						double seconds = (double) milliseconds / 1000;
+						
+						response.timeTaken = (float) ( seconds % 3600 ) / (double) 60 ;
 
-					if( Integer.parseInt( xt[0] ) < Integer.parseInt( et[0] ) ){
-
-						double min = ( (double) 60 - (double) Integer.parseInt( et[0] ) )/60 + (double) Integer.parseInt( xt[0] );
-						double sec = ( 60 - Double.parseDouble( et[1].trim() ) ) + Double.parseDouble( xt[1].trim() );
-						response.timeTaken = ( (min + (int) sec / 60   ) * unit + (sec % unit )  ) / unit; 		
-
-					}else if ( Integer.parseInt( xt[0] ) > Integer.parseInt( et[0] )  ) {
-
-						double min = (Integer.parseInt( xt[0] ) ) - Integer.parseInt( et[0] );
-						double sec = ( 60 - Double.parseDouble( et[1].trim() ) ) + Double.parseDouble( xt[1].trim() );
-						response.timeTaken = ( (min + (int) sec / 60  ) * unit + (sec % unit )  ) / unit; 		
-
-					}else {
-						double min =0.0d;
-						double sec =  Double.parseDouble( xt[1].trim() ) - Double.parseDouble( et[1].trim() );
-						response.timeTaken = ( sec / unit ) ; 		
-					}
+					}catch(Exception e){
+						response.timeTaken = 0.0d;
+					}	
 
 					System.err.println( appId+", "+repId+", ET: "+response.enterTime+" XT:"+response.exitTime+" TT:"+response.timeTaken);
 
@@ -390,7 +439,9 @@ class Data{
 						block.questions.put( repId, question );
 
 						if( timeTaken <= 20 ){
+
 							Question q = block.questions20.get( repId );
+
 							if( q == null ){
 								q = new Question( repId, response.type );
 							}	
@@ -420,41 +471,41 @@ class Data{
 
 					}else if ( repId.equals("BlockRev")  ){
 
-						applicant.BlockRev++;
+						applicant.BlockRev = 1;
 
 						if( timeTaken <= 20 ){
-							applicant.BlockRev20++;
+							applicant.BlockRev20 = 1;
 						}else{
-							applicant.BlockRev10++;
+							applicant.BlockRev10 = 1;
 						}
 
 					}else if ( repId.equals("EOSTimeLft")  ){
 
-						applicant.EOSTimeLft++;
+						applicant.EOSTimeLeft= 1;
 
 						if( timeTaken <= 20 ){
-							applicant.EOSTimeLeft20++;
+							applicant.EOSTimeLeft20 = 1;
 						}else{
-							applicant.EOSTimeLeft10++;
+							applicant.EOSTimeLeft10 = 1;
 						}
 
 					}else if ( repId.equals("SecTimeOut")  ){
 
-						applicant.SecTimeOut++;
+						applicant.SecTimeOut = 1;
 
 						if( timeTaken <= 20 ){
-							applicant.SecTimeOut20++;
+							applicant.SecTimeOut20 = 1;
 						}else{
-							applicant.SecTimeOut10++;
+							applicant.SecTimeOut10 = 1;
 						}
 
 					}else if ( repId.equals("HELPMAT8")  ){
 
-						applicant.HELPMAT8++;
+						applicant.HELPMAT8 = 1;
 						if( timeTaken <= 20 ){
-							applicant.HELPMAT820++;
+							applicant.HELPMAT820 = 1;
 						}else{
-							applicant.HELPMAT810++;
+							applicant.HELPMAT810 = 1;
 						}
 					} 	
 				}else if ( response.blockId.equals("B")  ){
@@ -512,25 +563,25 @@ class Data{
 
 	void print(){
 		Block block = blocks.get("A");
-		System.out.println( "Total Applicant: "+applicants.size() );
+		//System.out.println( "Total Applicant: "+applicants.size() );
 		block.print();
 	}
 }
 
-class Prediction{
+class Training{
 
 	Data data;
 
-	Prediction(){
-
+	Training(){
 		data = new Data();
 	}
 
-	void readData(String filename, boolean header){
-		data.read(filename, true);
+	void readTrainingData(String filename, boolean header){
+		data.readTraingData(filename, true);
 	}
-	void readDataTarget(String filename, boolean header){
-		data.readTarget(filename, true);
+
+	void readTrainingTarget(String filename, boolean header){
+		data.readTrainingTarget(filename, true);
 	}
 	
 	void createData(){
@@ -540,6 +591,10 @@ class Prediction{
 
 	void printData(){
 		data.print();
+		data.printTrainingHeader();
+		data.printTrainingData("0.3");
+		data.printTrainingData("0.2");
+		data.printTrainingData("0.1");
 	}	
 	
 	
@@ -567,10 +622,10 @@ class Prediction{
 			System.exit(0);
 		}
 	
-		Prediction prediction = new Prediction();
-		prediction.readData( filename, true );
-		prediction.readDataTarget( tarfilename, true );
-		prediction.createData();
-		prediction.printData();
+		Training training = new Training();
+		training.readTrainingData( filename, true );
+		training.readTrainingTarget( tarfilename, true );
+		training.createData();
+		training.printData();
 	}
 }
