@@ -161,11 +161,12 @@ class Data{
 			System.out.println("@attribute "+qid+"ETU {0,1}");
 			//System.out.println("@attribute "+qid+"ActionResult {0,1}");
 		}
-
+		/*
 		System.out.println("@attribute BlockRev numeric ");
 		System.out.println("@attribute EOSTimeLft numeric");
 		System.out.println("@attribute SecTimeOut numeric");
 		System.out.println("@attribute HELPMAT8 numeric");
+		*/
 		System.out.println("@data");
 	}
 

@@ -56,17 +56,20 @@ class Block{
 	Map<String, Question> questions20;
 	Map<String, Question> questions10;
 	
+	Set<String> qType;
+	
 	Block(String id){
+
 		this.id = id;
 		this.questions = new TreeMap<String, Question>();
 		this.questions20 = new TreeMap<String, Question>();
 		this.questions10 = new TreeMap<String, Question>();
+		this.qType = new HashSet<String>();
 	}
 
 	void calculate(){
 
 		for(String id: questions.keySet()){
-
 			Question question = questions.get(id);
 			Collections.sort( question.alltime );
 			long index =  Math.round( ( (double)5 / (double)100 ) * (double) question.alltime.size() ); 
@@ -75,14 +78,12 @@ class Block{
 			Collections.sort( question.allAction );
 			index =  Math.round( ( (double)5 / (double)100 ) * (double) question.allAction.size() ); 
 			question.fifthPercentileAction = question.allAction.get( (int) index ); 
-
 			questions.put( id, question );
 		}
 
 		for(String id: questions20.keySet()){
 
 			Question question = questions20.get(id);
-
 			Collections.sort( question.alltime );
 			long index =  Math.round( ( (double)5 / (double)100 ) * (double) question.alltime.size() ); 
 			question.fifthPercentile = question.alltime.get( (int)index ); 
@@ -90,7 +91,6 @@ class Block{
 			Collections.sort( question.allAction );
 			index =  Math.round( ( (double)5 / (double)100 ) * (double) question.allAction.size() ); 
 			question.fifthPercentileAction = question.allAction.get( (int) index ); 
-
 			questions20.put( id, question );
 		}
 
@@ -162,7 +162,11 @@ class Applicant{
 
 	Map<String, Response> responses; 
 	Map<String, Response> responses20;
-	Map<String, Response> responsesLast10;
+	Map<String, Response> responses10;
+
+	Map<String, Integer> qType;
+	Map<String, Integer> qType20;
+	Map<String, Integer> qType10;
 
 	Map<String,Integer> blockResult;
 
@@ -187,7 +191,11 @@ class Applicant{
 		this.id  = id;
 		this.responses = new LinkedHashMap<String, Response>();
 		this.responses20 = new LinkedHashMap<String, Response>();
-		this.responsesLast10 = new LinkedHashMap<String, Response>();
+		this.responses10 = new LinkedHashMap<String, Response>();
+
+		this.qType = new TreeMap<String,Integer>();
+		this.qType20 = new TreeMap<String,Integer>();
+		this.qType10 = new TreeMap<String,Integer>();
 
 		this.blockResult = new TreeMap<String, Integer>();
 
@@ -219,30 +227,26 @@ class Data{
 
 	void printTrainingHeader(){
 
-		/*
-			Note 
-			1. With all the data: 75.89%  System.out.print(", "+res.timeTaken+", "+res.actions.size()+", "+res.result+", "+res.actionresult);
-			2. WithOut action the data: 84.06% System.out.print(", "+res.timeTaken+", "+res.result);
-			3. WithOut action the data: 65.06% System.out.print(", "+res.result);
-			3. WithOut action the data: 82.06% System.out.print(", "+res.timeTaken+", "+res.actions.size()+", "+res.result);
-			3. WithOut action the data: 84.06% System.out.print(", "+res.timeTaken+", "+res.result+", "+res.actionresult);
-		*/
 		System.out.println("@relation 'NAEP TRAINING DATA SET'");
 		System.out.println("@attribute time {0.3,0.2,0.1}");
-
 		Block block = blocks.get("A");
+
 		for(String qid: block.questions.keySet() ){
+
 			System.out.println("@attribute "+qid+"time numeric");
-			//System.out.println("@attribute "+qid+"Action numeric");
 			System.out.println("@attribute "+qid+"ETU {0,1}");
-			//System.out.println("@attribute "+qid+"ActionResult {0,1}");
+		}
+		for(String qid: block.qType ){
+			System.out.println("@attribute "+qid+"-Count numeric");
 		}
 
 		System.out.println("@attribute BlockRev numeric ");
 		System.out.println("@attribute EOSTimeLft numeric");
 		System.out.println("@attribute SecTimeOut numeric");
 		System.out.println("@attribute HELPMAT8 numeric");
-		System.out.println("@attribute BlockAETU {0,1}");
+		/*
+		System.out.println("@attribute BlockA {0,1}");
+		*/
 		System.out.println("@attribute class {0,1}");
 		System.out.println("@data");
 	}
@@ -250,22 +254,52 @@ class Data{
 	void printTrainingData(String time){
 
 		Block block = blocks.get("A");
+
 		for(String appId: applicants.keySet() ){
 
 			Applicant applicant = applicants.get( appId );
-			System.out.print(time);
+
+			if( time.equals("0.3") ){
+				System.out.print("0.3");
+			}else if( time.equals("0.2") ){
+				System.out.print("0.2");
+			}else if( time.equals("0.1") ){
+				System.out.print("0.1");
+			}
 
 			for( String qId: block.questions.keySet() ){
-				Response res = applicant.responses.get( qId );
+
+				Response res = null ;
+
+				if( time.equals("0.3") ){
+					res = applicant.responses.get( qId );
+				}else if( time.equals("0.2") ){
+					res = applicant.responses20.get( qId );
+				}else if( time.equals("0.1") ){
+					res = applicant.responses10.get( qId );
+				}
+
 				if( res != null ){
-					//System.out.print(", "+res.timeTaken+", "+res.actions.size()+", "+res.result+", "+res.actionresult);
 					System.out.print(", "+res.timeTaken+", "+res.result);
-					//System.out.print(", "+res.timeTaken+", "+res.result);
 				}else{
-					System.out.print(", 0, 0");
+					System.out.print(",0, 0");
 				}
 			}
-			
+			for(String qId: block.qType ){
+				Integer count = 0;
+				if( time.equals("0.3") ){
+					count = applicant.qType.get( qId );
+				}else if( time.equals("0.2") ){
+					count = applicant.qType20.get( qId );
+				}else if( time.equals("0.1") ){
+					count = applicant.qType10.get( qId );
+				}
+				if( count == null)
+					System.out.print(", 0");
+				else
+					System.out.print(", "+count);
+			}
+
 			if( time.equals("0.3") ){
 				System.out.print(", "+applicant.BlockRev+", "+applicant.EOSTimeLeft+", "+applicant.SecTimeOut+", "+applicant.HELPMAT8);
 			}else if ( time.equals("0.2") ){
@@ -273,7 +307,10 @@ class Data{
 			}else if ( time.equals("0.1")){
 				System.out.print(", "+applicant.BlockRev10+", "+applicant.EOSTimeLeft10+", "+applicant.SecTimeOut10+", "+applicant.HELPMAT810);
 			}
-			System.out.println(", "+applicant.blockResult.get("A")+", "+applicant.blockResult.get("B"));
+			/*
+			System.out.print(", "+applicant.blockResult.get("A"));
+			*/
+			System.out.println(", "+applicant.blockResult.get("B"));
 		}
 	}
 
@@ -282,10 +319,8 @@ class Data{
 		BufferedReader br = null;
 		String line = null;
 		int count = 0;
-
 		try{
 			br = new BufferedReader( new FileReader( new File(filename) ) );
-
 			while( ( line = br.readLine()) != null ){
 
 				if( header ){
@@ -298,7 +333,8 @@ class Data{
 				String result =  token[1].trim();
 
 				Applicant applicant = applicants.get( applicantId );
-				if( result.equals("TRUE"))
+
+				if( result.equals("True"))
 					applicant.blockResult.put("B", 1);
 				else
 					applicant.blockResult.put("B", 0);
@@ -313,11 +349,6 @@ class Data{
 		}
 
 	}
-
-	void readTestingData(String filename, boolean header){
-
-	}
-
 
 	void readTraingData(String filename, boolean header){
 
@@ -408,21 +439,21 @@ class Data{
 					try{
 						Timestamp et = Timestamp.valueOf( response.enterTime);
 						Timestamp xt = Timestamp.valueOf( response.exitTime );
-
 						long milliseconds = xt.getTime() - et.getTime();
 						double seconds = (double) milliseconds / 1000;
-						
 						response.timeTaken = (float) ( seconds % 3600 ) / (double) 60 ;
 
 					}catch(Exception e){
+
 						response.timeTaken = 0.0d;
 					}	
 
-					System.err.println( appId+", "+repId+", ET: "+response.enterTime+" XT:"+response.exitTime+" TT:"+response.timeTaken);
+					//System.err.println( appId+", "+repId+", ET: "+response.enterTime+" XT:"+response.exitTime+" TT:"+response.timeTaken);
 
 					if(  repId.substring(0,2).equals("VH") ){
 
 						Question question = block.questions.get( repId );
+						block.qType.add( response.type );
 
 						if( question == null ){
 							question = new Question( repId, response.type );
@@ -440,33 +471,29 @@ class Data{
 
 						if( timeTaken <= 20 ){
 
-							Question q = block.questions20.get( repId );
-
-							if( q == null ){
-								q = new Question( repId, response.type );
-							}	
-							q.totalTime += response.timeTaken;
-							q.totalAction += response.actions.size();
-							q.attemptedApplicant.add( applicant );
-							q.alltime.add( response.timeTaken );
-							q.allAction.add( response.actions.size() );
-
-							block.questions20.put( repId, q);
 							applicant.responses20.put( repId, response );	
-
+							question = block.questions20.get( repId );
+							if( question == null ){
+								question = new Question( repId, response.type );
+							}
+							question.totalTime += response.timeTaken;
+							question.totalAction += response.actions.size();
+							question.attemptedApplicant.add( applicant );
+							question.alltime.add( response.timeTaken );
+							question.allAction.add( response.actions.size() );
+							block.questions20.put( repId, question );
 						}else{
-							Question q = block.questions10.get( repId );
-							if( q == null ){
-								q = new Question( repId, response.type );
-							}	
-							q.totalTime += response.timeTaken;
-							q.totalAction += response.actions.size();
-							q.attemptedApplicant.add( applicant );
-							q.alltime.add( response.timeTaken );
-							q.allAction.add( response.actions.size() );
-
-							block.questions10.put( repId, q);
-							applicant.responses20.put( repId, response );	
+							applicant.responses10.put( repId, response );	
+							question = block.questions10.get( repId );
+							if( question == null ){
+								question = new Question( repId, response.type );
+							}
+							question.totalTime += response.timeTaken;
+							question.totalAction += response.actions.size();
+							question.attemptedApplicant.add( applicant );
+							question.alltime.add( response.timeTaken );
+							question.allAction.add( response.actions.size() );
+							block.questions10.put( repId, question );
 						}
 
 					}else if ( repId.equals("BlockRev")  ){
@@ -508,34 +535,60 @@ class Data{
 							applicant.HELPMAT810 = 1;
 						}
 					} 	
-				}else if ( response.blockId.equals("B")  ){
-
 				}
-
 				blocks.put( response.blockId, block  );
 				applicant.responses.put( repId, response );
 			}
+
 			applicants.put( appId, applicant );
 		}
 	}
 
-	void calculateApplicant(){
+	void calculateApplicant(String time){
 
 		Block block = blocks.get("A");
 
 		for(String id: applicants.keySet() ){
 
 			Applicant applicant = applicants.get( id ); 
-			int count = 0;
-			for(String qId: applicant.responses.keySet() ){
 
-				Response response = applicant.responses.get( qId );
+			int count = 0;
+
+			Map<String,Response> responses = null;
+			Map<String,Question> questions = null;
+			Map<String,Integer> qType = null;
+
+			if( time.equals("3.0") ){
+				responses = applicant.responses;
+				questions = block.questions;
+				qType = applicant.qType;
+				
+			}else if( time.equals("2.0") ){
+				responses = applicant.responses20;
+				questions = block.questions20;
+				qType = applicant.qType20;
+			}else if( time.equals("1.0") ){
+				responses = applicant.responses10;
+				questions = block.questions10;
+				qType = applicant.qType10;
+			}
+			
+			for(String qId: responses.keySet() ){
+
+				Response response = responses.get( qId );
 
 				if(  qId.substring(0,2).equals("VH") ){
-					Question question = block.questions.get( qId );
+
+					Question question = questions.get( qId );
 
 					if( response.timeTaken >=  question.fifthPercentile ){
 						response.result = 1;
+						Integer c = qType.get( response.type );
+						if( c == null ){
+							c = 0;
+						}
+						c++;
+						qType.put( response.type, c );
 						count++;
 					}
 
@@ -543,7 +596,8 @@ class Data{
 						response.actionresult = 1;
 					}
 				}
-				applicant.responses.put(qId, response );
+
+				responses.put(qId, response );
 			}
 			if( count == block.questions.size() ){
 				applicant.blockResult.put("A", 1);
@@ -556,14 +610,17 @@ class Data{
 
 
 	void calculate5thPecentile(){
+
 		Block block = blocks.get("A");
 		block.calculate();
-		calculateApplicant();
+
+		calculateApplicant("3.0");
+		calculateApplicant("2.0");
+		calculateApplicant("1.0");
 	}
 
 	void print(){
 		Block block = blocks.get("A");
-		//System.out.println( "Total Applicant: "+applicants.size() );
 		block.print();
 	}
 }
@@ -585,16 +642,19 @@ class Training{
 	}
 	
 	void createData(){
+
 		data.create();	
 		data.calculate5thPecentile();
 	}
 
 	void printData(){
+
 		data.print();
+
 		data.printTrainingHeader();
 		data.printTrainingData("0.3");
-		data.printTrainingData("0.2");
-		data.printTrainingData("0.1");
+		//data.printTrainingData("0.2");
+		//data.printTrainingData("0.1");
 	}	
 	
 	
