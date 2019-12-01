@@ -1,4 +1,4 @@
-package cdac.in.training;
+package cdac.in.testing;
 
 import java.io.*;
 import java.util.*;
@@ -164,7 +164,7 @@ class Data{
 		this.qTypes = new TreeSet<String>();
 	}
 
-	void printTrainingHeader(){
+	void printTestingHeader(){
 
 		System.out.println("@relation 'NAEP TRAINING DATA SET'");
 		System.out.println("@attribute time {0.3,0.2,0.1}");
@@ -182,16 +182,17 @@ class Data{
 			//System.out.println("@attribute "+qid+"-Count numeric");
 		}
 		
-		System.out.println("@attribute BlockRev numeric ");
+		System.out.println("@attribute BlockRev numeric");
 		System.out.println("@attribute EOSTimeLft numeric");
 		System.out.println("@attribute SecTimeOut numeric");
 		System.out.println("@attribute HELPMAT8 numeric");
 		//System.out.println("@attribute BlockA numeric");
 		System.out.println("@attribute class {1.0, 0.0}");
+		System.out.println("@attribute applicatiId string");
 		System.out.println("@data");
 	}
 
-	void printTrainingData(Map<String,Applicant> applicants, String time){
+	void printTestingData(Map<String,Applicant> applicants, String time){
 
 		for(String appId: applicants.keySet() ){
 
@@ -246,48 +247,11 @@ class Data{
 			//System.out.print(", "+applicant.BlockRev+", "+applicant.SecTimeOut);
 			//System.out.print(", "+applicant.BlockRev);
 			//System.out.print(", "+applicant.blockResult.get("A"));
-			System.out.println(", "+applicant.blockResult.get("B"));
+			System.out.println(", ?, "+applicant.id);
 		}
 	}
 
-	void readTrainingTarget(String filename, boolean header){
-
-		BufferedReader br = null;
-		String line = null;
-		int count = 0;
-
-		try{
-			br = new BufferedReader( new FileReader( new File(filename) ) );
-			while( ( line = br.readLine()) != null ){
-
-				if( header ){
-					header = false;
-					continue;
-				}
-				count++;
-				String[] token =  line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
-				String applicantId =  token[0].trim();
-				String result =  token[1].trim();
-
-				Applicant applicant = applicants30.get( applicantId );
-
-				if( result.equals("True"))
-					applicant.blockResult.put("B", "1.0");
-				else
-					applicant.blockResult.put("B", "0.0");
-
-				applicants30.put( applicantId, applicant);
-			}
-
-			System.err.println("Target Read: "+count);
-
-		}catch(Exception e){
-			e.printStackTrace();
-		}
-
-	}
-
-	void readTraingData( String filename, boolean header){
+	void readTestingData( String filename, boolean header, String time){
 
 		BufferedReader br = null;
 		String line = null;
@@ -312,7 +276,14 @@ class Data{
 				String info =  token[5].trim();
 				String eventTime =  token[6].trim();
 
-				Applicant applicant = applicants30.get( applicantId );
+				Applicant applicant = null;
+
+				if( time.equals("0.3"))
+					applicant = applicants30.get( applicantId );
+				if( time.equals("0.2"))
+					applicant = applicants20.get( applicantId );
+				if( time.equals("0.1"))
+					applicant = applicants10.get( applicantId );
 
 				if( applicant == null){
 					applicant = new Applicant( applicantId );
@@ -338,9 +309,18 @@ class Data{
 					response.actions.add( info );
 				}
 				applicant.responses.put( qId, response );
-				applicants30.put( applicantId, applicant );
+
+				if( time.equals("0.3"))
+					applicants30.put( applicantId, applicant );
+				if( time.equals("0.2"))
+					applicants20.put( applicantId, applicant );
+				if( time.equals("0.1"))
+					applicants10.put( applicantId, applicant );
 			} 
+
 			System.err.println("Total Data Read: "+count+" applicant Count: "+applicants30.size());
+			System.err.println("Total Data Read: "+count+" applicant Count: "+applicants20.size());
+			System.err.println("Total Data Read: "+count+" applicant Count: "+applicants10.size());
 
 		}catch(Exception e){
 
@@ -349,11 +329,11 @@ class Data{
 		}
 	}
 
-	void create(){
+	void create(Map<String, Applicant> applicants, Map<String, Question> questions){
 
-		for(String appId: applicants30.keySet() ){
+		for(String appId: applicants.keySet() ){
 
-			Applicant applicant = applicants30.get( appId );
+			Applicant applicant = applicants.get( appId );
 
 			double timeTaken = 0;
 
@@ -376,7 +356,7 @@ class Data{
 
 				if(  repId.substring(0,2).equals("VH") ){
 
-					Question question = questions30.get( repId );
+					Question question = questions.get( repId );
 					if( question == null ){
 						question =  new Question( repId, response.type );
 					}
@@ -385,7 +365,7 @@ class Data{
 					question.totalAction += response.actions.size();
 					question.alltime.add( response.timeTaken );
 					question.allAction.add( response.actions.size() );
-					questions30.put( repId, question );
+					questions.put( repId, question );
 
 					Double timetaken = applicant.qTypeCount.get( question.type );
 					if( timetaken == null ){
@@ -394,177 +374,20 @@ class Data{
 					timetaken += response.timeTaken;
 					applicant.qTypeCount.put( question.type, timetaken );
 
-					if( timeTaken <= 20){
-
-						question = questions20.get( repId );
-
-						if( question == null ){
-							question =  new Question( repId, response.type );
-						}
-
-						question.totalTime += response.timeTaken;
-						question.totalAction += response.actions.size();
-						question.alltime.add( response.timeTaken );
-						question.allAction.add( response.actions.size() );
-
-						questions20.put( repId, question );
-						Applicant app = applicants20.get( applicant.id );
-
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-
-						app.responses.put( repId, response );
-
-						timetaken = app.qTypeCount.get( question.type );
-						if( timetaken == null ){
-							timetaken = 0.0d;
-						}
-						timetaken += response.timeTaken;
-						app.qTypeCount.put( question.type, timetaken );
-
-						applicants20.put( applicant.id, app );
-
-					}
-
-					if ( timeTaken <= 10 ){
-
-						question = questions10.get( repId );
-
-						if( question == null ){
-							question =  new Question( repId, response.type );
-						}
-
-						question.totalTime += response.timeTaken;
-						question.totalAction += response.actions.size();
-						question.alltime.add( response.timeTaken );
-						question.allAction.add( response.actions.size() );
-
-						questions10.put( repId, question );
-
-						Applicant app = applicants10.get( applicant.id );
-
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-						app.responses.put( repId, response );
-						timetaken = app.qTypeCount.get( question.type );
-						if( timetaken == null ){
-							timetaken = 0.0d;
-						}
-						timetaken += response.timeTaken;
-						app.qTypeCount.put( question.type, timetaken );
-
-						applicants10.put( applicant.id, app );
-					}
-
 				}else if ( repId.equals("BlockRev")  ){
-
 					applicant.BlockRev = 1;
-
-					if( timeTaken <= 20 ){
-
-						Applicant app = applicants20.get( applicant.id );
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-						app.BlockRev = 1;
-						applicants20.put( applicant.id, app );
-
-					}
-					
-					if ( timeTaken <= 10 ){
-
-						Applicant app = applicants10.get( applicant.id );
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-						app.BlockRev = 1;
-						applicants10.put( applicant.id, app );
-					}
 
 				}else if ( repId.equals("EOSTimeLft") ){
 					applicant.EOSTimeLeft= 1;
-					if( timeTaken <= 20 ){
-
-						Applicant app = applicants20.get( applicant.id );
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-						app.EOSTimeLeft = 1;
-						applicants20.put( applicant.id, app );
-
-					} 
-
-					if ( timeTaken <= 10 ){
-
-						Applicant app = applicants10.get( applicant.id );
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-						app.EOSTimeLeft = 1;
-						applicants10.put( applicant.id, app );
-					}
 
 				}else if( repId.equals("SecTimeOut")){
-
 					applicant.SecTimeOut = 1;
-					if( timeTaken <= 20 ){
-
-						Applicant app = applicants20.get( applicant.id );
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-						app.SecTimeOut = 1;
-						applicants20.put( applicant.id, app );
-
-					}
-					if ( timeTaken <= 10 ){
-
-						Applicant app = applicants10.get( applicant.id );
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-						app.SecTimeOut = 1;
-						applicants10.put( applicant.id, app );
-					}
-
 				}else if( repId.equals("HELPMAT8")  ){
-
 					applicant.HELPMAT8 = 1;
-					if( timeTaken <= 20 ){
-
-						Applicant app = applicants20.get( applicant.id );
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-						app.HELPMAT8 = 1;
-						applicants20.put( applicant.id, app );
-
-					}
-					if ( timeTaken <= 10 ){
-
-						Applicant app = applicants10.get( applicant.id );
-						if( app == null){
-							app = new Applicant( applicant.id);
-							app.blockResult.put("B", applicant.blockResult.get("B") );
-						}
-						app.HELPMAT8 = 1;
-						applicants10.put( applicant.id, app );
-					}
 				}
 				applicant.responses.put( repId, response );
 			}
-			applicants30.put( appId, applicant );
+			applicants.put( appId, applicant );
 		}
 	}
 
@@ -673,64 +496,45 @@ class Data{
 
 }
 
-class Training{
+class Testing{
 
 	Data data;
 
-	Training(){
+	Testing(){
 		data = new Data();
 	}
 
-	void readTrainingData(String filename, boolean header){
-		data.readTraingData(filename, true);
+	void readTestingData(String filename, boolean header, String time){
+		data.readTestingData(filename, header, time);
 	}
 
-	void readTrainingTarget(String filename, boolean header){
-		data.readTrainingTarget(filename, true);
-	}
-	
 	void createData(){
-		data.create();	
+
+		data.create( data.applicants30, data.questions30 );	
+		data.create( data.applicants20, data.questions20 );	
+		data.create( data.applicants10, data.questions10 );	
+
 		data.calculatePecentile();
 	}
 
 	void printData(){
 
-		data.printTrainingHeader();
-		data.printTrainingData( data.applicants30, "0.3" );
-		data.printTrainingData( data.applicants20, "0.2" );
-		data.printTrainingData( data.applicants10, "0.1" );
+		data.printTestingHeader();
+
+		data.printTestingData( data.applicants30, "0.3" );
+		data.printTestingData( data.applicants20, "0.2" );
+		data.printTestingData( data.applicants10, "0.1" );
 	}	
 	
 	
 	public static void main(String[] args){
 
-		String filename = null;
-		String tarfilename = null;
-		int i = 0;
+		Testing testing = new Testing();
+		testing.readTestingData( "../../data/data_a_hidden_30.csv", true, "0.3" );
+		testing.readTestingData( "../../data/data_a_hidden_20.csv", true, "0.2" );
+		testing.readTestingData( "../../data/data_a_hidden_10.csv", true, "0.1" );
 
-		while( i < args.length ){
-
-			if( args[i].equals("-f") ){
-				filename = args[i+1].trim();
-			}
-			if( args[i].equals("-tf") ){
-				tarfilename = args[i+1].trim();
-			}
-			i++;
-		}
-
-		if( filename == null || tarfilename == null){
-
-			System.err.println("Uses: -f <training-data>");
-			System.err.println("Uses: -tf <target-data>");
-			System.exit(0);
-		}
-	
-		Training training = new Training();
-		training.readTrainingData( filename, true );
-		training.readTrainingTarget( tarfilename, true );
-		training.createData();
-		training.printData();
+		testing.createData();
+		testing.printData();
 	}
 }
